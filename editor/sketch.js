@@ -1,114 +1,119 @@
-// RECEIPT!
-// This is the file to edit. p5.js reference: https://p5js.org/reference/
-import JsBarcode from "jsbarcode";
-
 export const receipt = {
-  height: 1080, // 240–2000 px. Width is fixed by the printer.
+  height: 760,
   seed: 67,
 };
 
-// everything here is editable. play around or rm -rf and see what you come up with!
+// a wooden block: white box with plank lines
+function crate(p, x, y, bw, bh) {
+  p.stroke(0);
+  p.strokeWeight(3);
+  p.fill(255);
+  p.rect(x, y, bw, bh);
+  p.strokeWeight(1);
+  for (let i = 8; i < bh; i += 8) {
+    p.line(x + 3, y + i, x + bw - 3, y + i);
+  }
+}
+
+// a simple pig face
+function pig(p, cx, cy, r) {
+  p.stroke(0);
+  p.strokeWeight(3);
+  p.fill(255);
+  p.triangle(cx - r * 0.85, cy - r * 0.35, cx - r * 0.7, cy - r * 1.2, cx - r * 0.15, cy - r * 0.85);
+  p.triangle(cx + r * 0.85, cy - r * 0.35, cx + r * 0.7, cy - r * 1.2, cx + r * 0.15, cy - r * 0.85);
+  p.circle(cx, cy, r * 2);
+  p.ellipse(cx, cy + r * 0.25, r * 0.9, r * 0.6);
+  p.fill(0);
+  p.circle(cx - r * 0.2, cy + r * 0.25, 4);
+  p.circle(cx + r * 0.2, cy + r * 0.25, 4);
+  p.circle(cx - r * 0.4, cy - r * 0.25, 8);
+  p.circle(cx + r * 0.4, cy - r * 0.25, 8);
+}
+
+// one tower: pillars + beams, no roof
+function tower(p, left, groundY, towerW, floors, pigFloor) {
+  const floorH = 60;
+  const pillar = 12;
+  const beamH = 16;
+  const pigR = Math.min(20, (towerW - pillar * 2) / 2 - 4);
+
+  for (let f = 0; f < floors; f++) {
+    const yBottom = groundY - f * (floorH + beamH);
+    const x0 = left + p.random(-3, 3);
+    crate(p, x0, yBottom - floorH, pillar, floorH);
+    crate(p, x0 + towerW - pillar, yBottom - floorH, pillar, floorH);
+    if (f === pigFloor) {
+      pig(p, x0 + towerW / 2, yBottom - floorH / 2, pigR);
+    }
+    crate(p, x0 - 4, yBottom - floorH - beamH, towerW + 8, beamH);
+  }
+}
+
+// a dashed line across the receipt
+function dashes(p, x1, x2, y) {
+  p.stroke(0);
+  p.strokeWeight(2);
+  for (let x = x1; x < x2; x += 10) {
+    p.line(x, y, x + 5, y);
+  }
+}
+
 export function drawReceipt(p) {
   const { width: w, height: h } = p;
+  p.background(255);
+
   const margin = 24;
 
-  // Header
-  p.noStroke();
-  p.fill(0);
-    p.textFont("monospace");
-    p.textAlign(p.CENTER, p.TOP);
-    p.textStyle(p.BOLD);
-    p.textSize(28);
-    p.text("NIGHT SIGNALS", w / 2, 30);
-
-  dashedLine(p, margin, 94, w - margin, 94, 6, 5);
-
-  // A seeded field of tiny stars and radio noise.
-  for (let i = 0; i < 150; i += 1) {
-    const x = p.random(margin, w - margin);
-    const y = p.random(118, 350);
-    const size = p.random([1, 1, 1, 2, 2, 3]);
-    if (p.random() > 0.82) {
-      p.rect(x - 3, y, 7, 1);
-      p.rect(x, y - 3, 1, 7);
-    } else {
-      p.rect(x, y, size, size);
-    }
-  }
-
-  // Layered mountain signals. p.noise() and p.random() are both seeded.
-  const ridgeTop = 300;
-  for (let layer = 0; layer < 5; layer += 1) {
-    p.fill(layer % 2 === 0 ? 0 : 255);
-    p.stroke(0);
-    p.strokeWeight(2);
-    p.beginShape();
-    p.vertex(margin, 500 + layer * 48);
-    for (let x = margin; x <= w - margin; x += 5) {
-      const wave = p.noise(x * 0.012, layer * 4.2) * 90;
-      const y = ridgeTop + layer * 50 - wave;
-      p.vertex(x, y);
-    }
-    p.vertex(w - margin, 500 + layer * 48);
-    p.endShape(p.CLOSE);
-  }
-
-  // The transmission: a winding route with little station markers.
-  p.noFill();
-  p.stroke(0);
-  p.strokeWeight(5);
-  p.beginShape();
-  const route = [];
-  for (let y = 585; y < 915; y += 34) {
-    const x = p.map(p.noise(y * 0.018, 20), 0, 1, 68, w - 68);
-    route.push({ x, y });
-    p.vertex(x, y);
-  }
-  p.endShape();
-
-  p.strokeWeight(2);
-  p.fill(255);
-  route.forEach(({ x, y }, index) => {
-    if (index % 2 === 0) {
-      p.square(x - 6, y - 6, 12);
-      p.line(index % 4 === 0 ? margin : w - margin, y, x, y);
-    }
-  });
-
-  dashedLine(p, margin, 930, w - margin, 930, 6, 5);
-
-  const barcodeValue = "receipt.hackclub.com";
-  drawBarcode(p, barcodeValue, w / 2, 960);
+  // ---- receipt text ----
+  const items = [
+    ["1", "chuck", "7.00"],
+    ["2", "Bubbles", "6.50"],
+    ["3", "Matilda", "9.50"],
+    ["4", "stella", "5.75"],
+  ];
 
   p.noStroke();
   p.fill(0);
-  p.textFont("monospace");
+  p.textFont("Georgia");
+  p.textStyle(p.BOLD);
+  p.textSize(26);
   p.textAlign(p.CENTER, p.TOP);
-  p.textStyle(p.NORMAL);
-  p.textSize(10);
-  p.text(barcodeValue, w / 2, 1024);
-}
+  p.text("The Bad piggy store", w / 2, 24);
 
-function drawBarcode(p, value, centerX, y) {
-  const barcodeCanvas = document.createElement("canvas");
-  JsBarcode(barcodeCanvas, value, {
-    format: "CODE128",
-    width: 1,
-    height: 52,
-    displayValue: false,
-    margin: 0,
-    background: "#ffffff",
-    lineColor: "#000000",
-  });
-  // Draw directly on p5's canvas: p.image expects a p5 image wrapper, while
-  // JsBarcode returns a regular browser canvas.
-  p.drawingContext.drawImage(barcodeCanvas, Math.floor(centerX - barcodeCanvas.width / 2), y);
-}
+  dashes(p, margin, w - margin, 70);
 
-function dashedLine(p, x1, y1, x2, y2, dash, gap) {
+  p.noStroke();
+  p.fill(0);
+  p.textSize(16);
+  for (let i = 0; i < items.length; i++) {
+    const y = 90 + i * 26;
+    p.textAlign(p.LEFT, p.TOP);
+    p.textStyle(p.NORMAL); // quantity and name stay normal
+    p.text(items[i][0], margin, y);
+    p.text(items[i][1], margin + 30, y);
+    p.textAlign(p.RIGHT, p.TOP);
+    p.textStyle(p.ITALIC); // only the price is italic
+    p.text(items[i][2], w - margin, y);
+  }
+
+  dashes(p, margin, w - margin, 205);
+
+  // ---- towers ----
+  const groundY = h - 80;
+  const towerCount = 3;
+  const gap = 24;
+  const towerW = (w - margin * 2 - gap * (towerCount - 1)) / towerCount;
+
   p.stroke(0);
-  p.strokeWeight(2);
-  for (let x = x1; x < x2; x += dash + gap) {
-    p.line(x, y1, Math.min(x + dash, x2), y2);
+  p.strokeWeight(4);
+  p.line(margin, groundY, w - margin, groundY);
+
+  for (let t = 0; t < towerCount; t++) {
+    const left = margin + t * (towerW + gap);
+    const floors = p.floor(p.random(4, 7)); // 4 to 6 floors
+    const hasPig = p.random() < 0.7;
+    const pigFloor = hasPig ? p.floor(p.random(0, floors)) : -1;
+    tower(p, left, groundY, towerW, floors, pigFloor);
   }
 }
